@@ -1,0 +1,67 @@
+#include <msp430.h>
+#include "libTimer.h"
+#include "buzzer.h"
+#include "led-sound.h"
+
+void song(){
+
+  /* Using the buzzTime variable, which continuously increases until it reaches 900 and resets, 
+     the buzzer will be set to certain frequencies.  Additionally, the red and green LED's will 
+     toggle with each change in pitch in the buzzer.*/
+  
+  static int buzzTime = 0;
+  while(buzzTime < 100){
+    if (buzzTime == 50){
+      buzzer_set_period(1000);
+      P1OUT |= LED_GREEN;
+      P1OUT &= ~LED_RED;
+      buzzTime++;
+    } else if (buzzTime == 100){
+      buzzer_set_period(1000);
+      P1OUT |= LED_GREEN;
+      P1OUT &= ~LED_GREEN;
+      buzzTime++;
+    } else if (buzzTime == 150){
+      buzzer_set_period(800);
+      P1OUT |= LED_RED;
+      P1OUT &= ~LED_GREEN;
+      buzzTime++;
+    } else if (buzzTime == 200){
+      buzzer_set_period(1000);
+      P1OUT |= LED_GREEN;
+      P1OUT &= ~LED_RED;
+      buzzTime++;
+    } else if (buzzTime == 325){
+      buzzer_set_period(800);
+      P1OUT |= LED_RED;
+      P1OUT &= ~LED_GREEN;
+      buzzTime++;
+    } else if (buzzTime == 450){
+      buzzer_set_period(700);
+      P1OUT |= LED_GREEN;
+      P1OUT &= ~LED_RED;
+      buzzTime++;
+    } else if (buzzTime == 575){
+      buzzer_set_period(600);
+      P1OUT |= LED_RED;
+      P1OUT &= ~LED_GREEN;
+      buzzTime++;
+    } else if (buzzTime == 700){
+      buzzer_set_period(600);
+      P1OUT |= LED_RED;
+      P1OUT &= ~LED_GREEN;
+      buzzTime++;
+    } else if (buzzTime == 750){
+      buzzer_set_period(800);
+      P1OUT |= LED_GREEN;
+      P1OUT &= ~LED_RED;
+      buzzTime++;
+    } else if (buzzTime == 850){
+      buzzer_set_period(600);
+      P1OUT |= LED_RED;
+      P1OUT &= ~LED_GREEN;
+      buzzTime++;
+    }
+    buzzTime++;
+  }
+}
