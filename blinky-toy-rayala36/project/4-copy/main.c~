@@ -1,0 +1,90 @@
+//Alternate LEDs from Off, Green, and Red
+#include <msp430.h>
+#include "libTimer.h"
+#include "led.h"
+
+int main(void) {
+  P1DIR |= LEDS;
+  P1OUT &= ~LED_GREEN;
+  P1OUT |= LED_RED;
+
+  configureClocks();		/* setup master oscillator, CPU & peripheral clocks */
+  enableWDTInterrupts();	/* enable periodic interrupt */
+  
+  or_sr(0x18);			/* CPU off, GIE on */
+}
+
+// global state vars that control blinking
+int blinkLimit = 5;  // duty cycle = 1/blinkLimit
+int blinkCount = 0;  // cycles 0...blinkLimit-1
+int secondCount = 0; // state var representing repeating time 0…1s
+
+void greenControl(int on)
+{
+  if (on) {
+    P1OUT |= LED_GREEN;
+  } else {
+    P1OUT &= ~LED_GREEN;
+  }
+}
+
+// blink state machine
+static int blinkLimit2 = 5;   //  state var representing reciprocal of duty cycle
+void blinkUpdate() // called every 1/250s to blink with duty cycle 1/blinkLimit
+{
+  static int blinkCount2 = 0; // state var representing blink state
+  blinkCount2 ++;
+  if (blinkCount2 >= blinkLimit2) {
+    blinkCount2 = 0;
+    greenControl(1);
+  } else
+    greenControl(0);
+}
+
+void oncePerSecond() // repeatedly start bright and gradually lower duty cycle, one step/sec
+{
+  blinkLimit2 --;  // reduce duty cycle
+  if (blinkLimit2 <= 0)  // but don't let duty cycle go below 1/7.
+    blinkLimit2 = 8;
+}
+
+void secondUpdate()
+{
+  static int secondCount2 = 0;
+  secondCount2 ++;
+  if (secondCount2 >= 50){
+    secondCount2= 0;
+    oncePerSecond();
+  }
+}
+
+void greenTimeAdvStateMachines() // called every 1/250 sec
+{
+  blinkUpdate();
+  secondUpdate();
+}
+
+void
+__interrupt_vec(WDT_VECTOR) WDT()	/* 250 interrupts/sec */
+{
+
+  greenTimeAdvStateMachines();
+  
+  // handle blinking 
+  blinkCount ++;
+  if (blinkCount )
+  if (blinkCount >= blinkLimit) { // on for 1 interrupt period
+    blinkCount = 0;
+    P1OUT |= LED_RED;
+  } else {		          // off for blinkLimit - 1 interrupt periods
+    P1OUT &= ~LED_RED;
+  }
+  // measure a second
+  secondCount ++;
+  if (secondCount >= 250) {  // once each second
+    secondCount = 0;
+    blinkLimit --;	     // Increase duty cycle
+    if (blinkLimit <= 0)     // but don't let duty cycle go below 1/7.
+      blinkLimit = 8;
+  }
+} 
