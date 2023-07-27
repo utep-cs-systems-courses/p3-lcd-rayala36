@@ -7,13 +7,13 @@ LDFLAGS		= -L../lib -L/opt/ti/msp430_gcc/include/
 CC              = msp430-elf-gcc
 AS              = msp430-elf-gcc -mmcu=${CPU} -c
 
-all:wakedemo.elf
+all:pongjuggle.elf
 
 #additional rules for files
-wakedemo.elf: ${COMMON_OBJECTS} project.o wdt_handler.o
+pongjuggle.elf: ${COMMON_OBJECTS} update_shape.o draw_offense.o draw_defense.c draw_ball.o diamond.o  project.o wdt_handler.o
 	${CC} ${CFLAGS} ${LDFLAGS} -o $@ $^ -lTimer -lLcd 
 
-load: wakedemo.elf
+load: pongjuggle.elf
 	msp430loader.sh $^
 
 clean:

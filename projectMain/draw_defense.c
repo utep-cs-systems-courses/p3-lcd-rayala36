@@ -1,0 +1,30 @@
+#include <msp430.h>
+#include <libTimer.h>
+#include "lcdutils.h"
+#include "lcddraw.h"
+#include "pongjuggle.h"
+
+short drawPos2[2];
+short controlPos2[2];
+short colVelocity2;
+short colLimits[2];
+
+void
+draw_defense(int col, int row, unsigned short color)
+{
+  fillRectangle(col-1, row-1, 28, 3, color);
+}
+
+void
+screen_update_defense()
+{
+  for (char axis2 = 0; axis2 < 2; axis2 ++) 
+    if (drawPos2[axis2] != controlPos2[axis2]) /* position changed? */
+      goto redraw2;
+  return;			/* nothing to do */
+ redraw2:
+  draw_defense(drawPos2[0], drawPos2[1], COLOR_BLACK); /* erase */
+  for (char axis2 = 0; axis2 < 2; axis2 ++)
+    drawPos2[axis2] = controlPos2[axis2];
+  draw_defense(drawPos2[0], drawPos2[1], COLOR_WHITE); /* draw */
+}  

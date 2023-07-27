@@ -1,20 +1,17 @@
 #include <msp430.h>
 #include <libTimer.h>
-#include "lcdutils.h"
-#include "lcddraw.h"
 #include <stdlib.h>
 #include <string.h>
+#include "libTimer.h"
+#include "lcdutils.h"
+#include "lcddraw.h"
+#include "pongjuggle.h"
 
-// WARNING: LCD DISPLAY USES P1.0.  Do not touch!!! 
-
-#define LED BIT6		/* note that bit zero req'd for display */
-
-#define SW1 1
-#define SW2 2
-#define SW3 4
-#define SW4 8
-
-#define SWITCHES 15
+#ifndef buzzer_included
+#define buzzer_included
+void buzzer_init();
+void buzzer_set_period(short cycles);
+#endif
 
 char blue = 31, green = 0, red = 31;
 unsigned char step = 0;
@@ -31,7 +28,9 @@ switch_update_interrupt_sense()
 
 void 
 switch_init()			/* setup switch */
-{  
+{
+  buzzer_init();
+  configureClocks();
   P2REN |= SWITCHES;		/* enables resistors for switches */
   P2IE |= SWITCHES;		/* enable interrupts from switches */
   P2OUT |= SWITCHES;		/* pull-ups for switches */
@@ -48,78 +47,18 @@ switch_interrupt_handler()
   switches = ~p2val & SWITCHES;
 }
 
-void
-draw_ball(int col, int row, unsigned short color)
-{
-  fillRectangle(col-1, row-1, 6, 6, color);
-}
-
-// axis zero for col, axis 1 for row
-short drawPos[2] = {1, 10}, controlPos[2] = {2, 10};
+// Starting position, speed, and available positions for ball
+short drawPos[2] = {1, screenHeight/2}, controlPos[2] = {2, screenHeight/2};
 short colVelocity = 5, rowVelocity = 5;
 short rowLimits[2] = {0, screenHeight}, colLimits[2] = {1, screenWidth - 3};
 
-void
-screen_update_ball()
-{
-  for (char axis = 0; axis < 2; axis ++) 
-    if (drawPos[axis] != controlPos[axis]) /* position changed? */
-      goto redraw;
-  return;			/* nothing to do */
- redraw:
-  draw_ball(drawPos[0], drawPos[1], COLOR_BLACK); /* erase */
-  for (char axis = 0; axis < 2; axis ++)
-    drawPos[axis] = controlPos[axis];
-  draw_ball(drawPos[0], drawPos[1], COLOR_WHITE); /* draw */
-}
-
-// axis zero for col, axis 1 for row
+// Starting position, speed, and available positions for defense board
 short drawPos2[2] = {1, 15}, controlPos2[2] = {2, 15};
 short colVelocity2 = 9, colLimits2[2] = {1, screenWidth - 20};
 
-void
-draw_defense(int col, int row, unsigned short color)
-{
-  fillRectangle(col-1, row-1, 28, 3, color);
-}
-
-void
-screen_update_defense()
-{
-  for (char axis2 = 0; axis2 < 2; axis2 ++) 
-    if (drawPos2[axis2] != controlPos2[axis2]) /* position changed? */
-      goto redraw2;
-  return;			/* nothing to do */
- redraw2:
-  draw_defense(drawPos2[0], drawPos2[1], COLOR_BLACK); /* erase */
-  for (char axis2 = 0; axis2 < 2; axis2 ++)
-    drawPos2[axis2] = controlPos2[axis2];
-  draw_defense(drawPos2[0], drawPos2[1], COLOR_WHITE); /* draw */
-}  
-
-// axis zero for col, axis 1 for row
+// Starting position, speed, and available positions for offense board
 short drawPos3[2] = {1, screenHeight-20}, controlPos3[2] = {2, screenHeight-20};
 short colVelocity3 = 9, colLimits3[2] = {1, screenWidth - 20};
-
-void
-draw_offense(int col, int row, unsigned short color)
-{
-  fillRectangle(col-1, row-1, 28, 3, color);
-}
-
-void
-screen_update_offense()
-{
-  for (char axis3 = 0; axis3 < 2; axis3 ++) 
-    if (drawPos3[axis3] != controlPos3[axis3]) /* position changed? */
-      goto redraw3;
-  return;			/* nothing to do */
- redraw3:
-  draw_offense(drawPos3[0], drawPos3[1], COLOR_BLACK); /* erase */
-  for (char axis3 = 0; axis3 < 2; axis3 ++)
-    drawPos3[axis3] = controlPos3[axis3];
-  draw_offense(drawPos3[0], drawPos3[1], COLOR_WHITE); /* draw */
-}  
 
 short redrawScreen = 1;
 u_int controlFontColor = COLOR_GREEN;
@@ -150,29 +89,44 @@ void wdt_c_handler()
       if ( newRow <= rowLimits[0] || newRow >= rowLimits[1] ) {
 	   rowVelocity = -rowVelocity;
 	   score = 0;
+	   drawString5x7(42, screenHeight/2, "Score: ", COLOR_YELLOW, COLOR_BLACK);
+	   drawString5x7(78, screenHeight/2, itoa(score, pScore, 7), COLOR_YELLOW, COLOR_BLACK);
 
       // Detects if ball collided with top (defense) board
       } else if ( newRow >= controlPos2[1] && newRow <= controlPos2[1]+1 && newCol >= controlPos2[0] && newCol <= controlPos2[0]+28){ 
 	   rowVelocity = -rowVelocity;
 	   score += 1;
+	   drawString5x7(42, screenHeight/2, "Score: ", COLOR_YELLOW, COLOR_BLACK);
+	   drawString5x7(78, screenHeight/2, itoa(score, pScore, 7), COLOR_YELLOW, COLOR_BLACK);
 
       // Detects if ball collided with bottom (offense) board
       } else if (newRow >= controlPos3[1]-1 && newRow <= controlPos3[1]+2 && newCol >= controlPos3[0] && newCol <= controlPos3[0]+28){
            rowVelocity = -rowVelocity;
 	   score += 1;
+	   drawString5x7(42, screenHeight/2, "Score: ", COLOR_YELLOW, COLOR_BLACK);
+	   drawString5x7(78, screenHeight/2, itoa(score, pScore, 7), COLOR_YELLOW, COLOR_BLACK);
 	   
       } else
 	   controlPos[1]  = newRow;
     }
     {
+      if(score == 1)
+	 buzzer_set_period(900);
+      if(score == 2)
+	 buzzer_set_period(700);
+      if(score == 3)
+	 buzzer_set_period(650);
+      if(score == 4)
+	 buzzer_set_period(600);
       if(score == 5){
+	 buzzer_set_period(400);
 	 colVelocity = 0;
 	 rowVelocity = 0;
 	 colVelocity2 = 0;
 	 colVelocity3 = 0;
 	 clearScreen(COLOR_GREEN);
-	 clearScreen(COLOR_GREEN);
-	 drawString5x7(42, screenHeight/2, "YOU WIN!", COLOR_BLACK, COLOR_GREEN);
+	 drawDiamond(1, (screenHeight/2)+4, 63, COLOR_ROYAL_BLUE);
+	 drawString5x7(42, screenHeight/2, "YOU WIN!", COLOR_BLACK, COLOR_ROYAL_BLUE);
 	 score = 0;
       }
       
@@ -183,23 +137,21 @@ void wdt_c_handler()
       /* update player (offense) board */
       short oldCol3 = controlPos3[0];
       short newCol3 = oldCol3 + colVelocity3;
-      
+
+      // Moves offense board (bottom)
       if (switches & SW3){
 	 if(newCol3 <= colLimits3[0] || newCol3 >= colLimits3[1])
             colVelocity3 = -colVelocity3;
          else
 	    controlPos3[0] = newCol3;
-	 drawString5x7(42, screenHeight/2, "Score: ", COLOR_YELLOW, COLOR_BLACK);
-	 drawString5x7(78, screenHeight/2, itoa(score, pScore, 7), COLOR_YELLOW, COLOR_BLACK);
       }
-      
+
+      // Moves defense board (top)
       if (switches & SW2){
 	 if(newCol2 <= colLimits2[0] || newCol2 >= colLimits2[1])
 	    colVelocity2 = -colVelocity2;
 	 else
 	    controlPos2[0] = newCol2;
-	 drawString5x7(42, screenHeight/2, "Score: ", COLOR_YELLOW, COLOR_BLACK);
-	 drawString5x7(78, screenHeight/2, itoa(score, pScore, 7), COLOR_YELLOW, COLOR_BLACK);
       }
 
       if (switches & SW1){
@@ -207,12 +159,12 @@ void wdt_c_handler()
         colVelocity = 0;
         colVelocity2 = 0;
         colVelocity3 = 0;
+	buzzer_set_period(0);
 	clearScreen(COLOR_BLUE);
 	clearScreen(COLOR_BLUE);
 	drawDiamond(1, (screenHeight/2)+4, 63, COLOR_YELLOW);
 	drawString5x7(16, screenHeight/2, "Ralph's Pong Game", COLOR_BLACK, COLOR_YELLOW);
-	drawString5x7(14, screenHeight-10, "Press S4", COLOR_YELLOW, COLOR_BLUE);
-	drawString5x7(68, screenHeight-10, "to Play", COLOR_YELLOW, COLOR_BLUE);
+	drawString5x7(14, screenHeight-10, "Press S4 to Play", COLOR_YELLOW, COLOR_BLUE);
       }
       if (step <= 30)
 	step ++;
@@ -221,9 +173,8 @@ void wdt_c_handler()
       secCount = 0;
     }
     if (switches & SW4){
+      buzzer_set_period(0);
       clearScreen(COLOR_BLACK);
-      drawString5x7(42, screenHeight/2, "Score: ", COLOR_YELLOW, COLOR_BLACK);
-      drawString5x7(78, screenHeight/2, itoa(score, pScore, 7), COLOR_YELLOW, COLOR_BLACK);
       rowVelocity = 5;
       colVelocity = 5;
       colVelocity2 = 9;
@@ -246,8 +197,15 @@ void main()
   
   enableWDTInterrupts();      /**< enable periodic interrupt */
   or_sr(0x8);	              /**< GIE (enable interrupts) */
-  
-  clearScreen(COLOR_BLACK);
+
+  colVelocity = 0;
+  rowVelocity = 0;
+  colVelocity2 = 0;
+  colVelocity3 = 0;
+  clearScreen(COLOR_BLUE);
+  drawDiamond(1, (screenHeight/2)+4, 63, COLOR_YELLOW);
+  drawString5x7(16, screenHeight/2, "Ralph's Pong Game", COLOR_BLACK, COLOR_YELLOW);
+  drawString5x7(14, screenHeight-10, "Press S4 to Play", COLOR_YELLOW, COLOR_BLUE);
   while (1) {			/* forever */
     if (redrawScreen) {
       redrawScreen = 0;
@@ -259,42 +217,39 @@ void main()
   }
 }
 
-void drawDiamond(int cCol, int cRow, int size, u_int color)
-{
-    int c = 0;
-    int r = 0;
-    for(int j = 0; j < size; j++){
-      drawPixel(cCol+c, cRow+r, color);
-      drawPixel(cCol+c, cRow-r, color);
-      int upper = (cRow-r), lower = (cRow+r);
-      for(;upper <= lower; upper++)
-	drawPixel(cCol+c, upper, color);
-      c += 1;
-      r += 1;
-    }
-    for(int k = 0; k <= size; k++){
-      drawPixel(cCol+c, cRow+r, color);
-      drawPixel(cCol+c, cRow-r, color);
-      int upper = (cRow-r), lower = (cRow+r);
-      for(;upper <= lower; upper++)
-	drawPixel(cCol+c, upper, color);
-      c += 1;
-      r -= 1;
-    }
-}
-
-void
-update_shape()
-{
-  screen_update_ball();
-  screen_update_defense();
-  screen_update_offense();
-}
-
 void
 __interrupt_vec(PORT2_VECTOR) Port_2(){
   if (P2IFG & SWITCHES) {	      /* did a button cause this interrupt? */
     P2IFG &= ~SWITCHES;		      /* clear pending sw interrupts */
     switch_interrupt_handler();	/* single handler for all switches */
   }
+}
+
+// Overall function: Controls the buzzer
+
+void buzzer_init()
+{
+  /* Direct timer A output "TA0.1" to P2.6.  According to table 21 from data sheet:
+       P2SEL2.6, P2SEL2.7, anmd P2SEL.7 must be zero, P2SEL.6 must be 1
+       Also: P2.6 direction must be output */
+
+  /*used to drive speaker by generating periodic interrupts; sets timer to Up mode*/
+  timerAUpmode();
+  /*Clears bits 6 and 7 of P2SELS2 register, ensuring they are not used for alternate functions*/
+  P2SEL2 &= ~(BIT6 | BIT7);
+  /* P2.7 is used as a GPIO pin. */
+  P2SEL &= ~BIT7;
+  /* Enables alternate fucntion of P2.6*/
+  P2SEL |= BIT6;
+  /* Configures P2.6 as an output pin to control the buzzer*/
+  P2DIR = BIT6;/* enable output to speaker (P2.6) */
+}
+
+// Sets period of buzzer's tone by configuring the timer's Capture/Compare Registers(CCR0 and CCR1)
+void buzzer_set_period(short cycles) /* buzzer clock = 2MHz.(period of 1k results in 2kHz tone) */
+{
+  // Determines total period of the tone.
+  CCR0 = cycles;
+  // Controls duty cycle of square wave generated by buzzer by setting CCR1 to 1/2 of the period.
+  CCR1 = cycles >> 1;/* one half cycle */
 }
