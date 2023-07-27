@@ -2,6 +2,8 @@
 #include <libTimer.h>
 #include "lcdutils.h"
 #include "lcddraw.h"
+#include <stdlib.h>
+#include <string.h>
 
 // WARNING: LCD DISPLAY USES P1.0.  Do not touch!!! 
 
@@ -53,7 +55,7 @@ draw_ball(int col, int row, unsigned short color)
 }
 
 // axis zero for col, axis 1 for row
-short drawPos[2] = {1, screenHeight >> 1}, controlPos[2] = {2, 10};
+short drawPos[2] = {1, 10}, controlPos[2] = {2, 10};
 short colVelocity = 5, rowVelocity = 5;
 short rowLimits[2] = {0, screenHeight}, colLimits[2] = {1, screenWidth - 3};
 
@@ -72,8 +74,8 @@ screen_update_ball()
 }
 
 // axis zero for col, axis 1 for row
-short drawPos2[2] = {1, 5}, controlPos2[2] = {2, 5};
-short colVelocity2 = 8, colLimits2[2] = {1, screenWidth - 20};
+short drawPos2[2] = {1, 15}, controlPos2[2] = {2, 15};
+short colVelocity2 = 9, colLimits2[2] = {1, screenWidth - 20};
 
 void
 draw_defense(int col, int row, unsigned short color)
@@ -96,8 +98,8 @@ screen_update_defense()
 }  
 
 // axis zero for col, axis 1 for row
-short drawPos3[2] = {1, screenHeight-6}, controlPos3[2] = {2, screenHeight-6};
-short colVelocity3 = 5, colLimits3[2] = {1, screenWidth - 20};
+short drawPos3[2] = {1, screenHeight-20}, controlPos3[2] = {2, screenHeight-20};
+short colVelocity3 = 9, colLimits3[2] = {1, screenWidth - 20};
 
 void
 draw_offense(int col, int row, unsigned short color)
@@ -125,61 +127,112 @@ u_int controlFontColor = COLOR_GREEN;
 void wdt_c_handler()
 {
   static int secCount = 0;
+  static int score = 0;
+  static char pScore[7];
 
+  
   secCount ++;
   if (secCount >= 25) {		/* 10/sec */
-   
-    {				/* move ball */
+    {
+      /* move ball */
       short oldCol = controlPos[0];
       short newCol = oldCol + colVelocity;
       short oldRow = controlPos[1];
       short newRow = oldRow + rowVelocity;
 
-      if (newCol <= colLimits[0] || newCol >= colLimits[1])
-	colVelocity = -colVelocity;
+      //Detects if ball hits right/left screen boundaries
+      if ( newCol <= colLimits[0] || newCol >= colLimits[1] )
+           colVelocity = -colVelocity;
       else
-	controlPos[0] = newCol;
+           controlPos[0] = newCol;
 
-      if( newRow <= rowLimits[0] || newRow >= rowLimits[1])
-	rowVelocity = -rowVelocity;
-      else
-	controlPos[1] = newRow;
+      // Detects if ball hits top/bottom screen boundaries
+      if ( newRow <= rowLimits[0] || newRow >= rowLimits[1] ) {
+	   rowVelocity = -rowVelocity;
+	   score = 0;
 
-                                /* move defense board*/
+      // Detects if ball collided with top (defense) board
+      } else if ( newRow >= controlPos2[1] && newRow <= controlPos2[1]+1 && newCol >= controlPos2[0] && newCol <= controlPos2[0]+28){ 
+	   rowVelocity = -rowVelocity;
+	   score += 1;
+
+      // Detects if ball collided with bottom (offense) board
+      } else if (newRow >= controlPos3[1]-1 && newRow <= controlPos3[1]+2 && newCol >= controlPos3[0] && newCol <= controlPos3[0]+28){
+           rowVelocity = -rowVelocity;
+	   score += 1;
+	   
+      } else
+	   controlPos[1]  = newRow;
+    }
+    {
+      if(score == 5){
+	 colVelocity = 0;
+	 rowVelocity = 0;
+	 colVelocity2 = 0;
+	 colVelocity3 = 0;
+	 clearScreen(COLOR_GREEN);
+	 clearScreen(COLOR_GREEN);
+	 drawString5x7(42, screenHeight/2, "YOU WIN!", COLOR_BLACK, COLOR_GREEN);
+	 score = 0;
+      }
+      
+      /* move defense board*/
       short oldCol2 = controlPos2[0];
       short newCol2 = oldCol2 + colVelocity2;
-      if(newCol2 <= colLimits2[0] || newCol2 >= colLimits2[1])
-        colVelocity2 = -colVelocity2;
-      else
-	controlPos2[0] = newCol2;
-    }
 
-    {				/* update player (offense) board */
+      /* update player (offense) board */
       short oldCol3 = controlPos3[0];
       short newCol3 = oldCol3 + colVelocity3;
+      
       if (switches & SW3){
-         if(newCol3 <= colLimits3[0] || newCol3 >= colLimits3[1])
+	 if(newCol3 <= colLimits3[0] || newCol3 >= colLimits3[1])
             colVelocity3 = -colVelocity3;
          else
 	    controlPos3[0] = newCol3;
+	 drawString5x7(42, screenHeight/2, "Score: ", COLOR_YELLOW, COLOR_BLACK);
+	 drawString5x7(78, screenHeight/2, itoa(score, pScore, 7), COLOR_YELLOW, COLOR_BLACK);
       }
+      
       if (switches & SW2){
-	colVelocity3 = -(colVelocity3 * 2);
+	 if(newCol2 <= colLimits2[0] || newCol2 >= colLimits2[1])
+	    colVelocity2 = -colVelocity2;
+	 else
+	    controlPos2[0] = newCol2;
+	 drawString5x7(42, screenHeight/2, "Score: ", COLOR_YELLOW, COLOR_BLACK);
+	 drawString5x7(78, screenHeight/2, itoa(score, pScore, 7), COLOR_YELLOW, COLOR_BLACK);
       }
 
-      if (switches & SW1)
-         colVelocity3 = 5;
+      if (switches & SW1){
+	rowVelocity = 0;
+        colVelocity = 0;
+        colVelocity2 = 0;
+        colVelocity3 = 0;
+	clearScreen(COLOR_BLUE);
+	clearScreen(COLOR_BLUE);
+	drawDiamond(1, (screenHeight/2)+4, 63, COLOR_YELLOW);
+	drawString5x7(16, screenHeight/2, "Ralph's Pong Game", COLOR_BLACK, COLOR_YELLOW);
+	drawString5x7(14, screenHeight-10, "Press S4", COLOR_YELLOW, COLOR_BLUE);
+	drawString5x7(68, screenHeight-10, "to Play", COLOR_YELLOW, COLOR_BLUE);
+      }
       if (step <= 30)
 	step ++;
       else
 	step = 0;
       secCount = 0;
     }
-    if (switches & SW4) return;
-    redrawScreen = 1;
+    if (switches & SW4){
+      clearScreen(COLOR_BLACK);
+      drawString5x7(42, screenHeight/2, "Score: ", COLOR_YELLOW, COLOR_BLACK);
+      drawString5x7(78, screenHeight/2, itoa(score, pScore, 7), COLOR_YELLOW, COLOR_BLACK);
+      rowVelocity = 5;
+      colVelocity = 5;
+      colVelocity2 = 9;
+      colVelocity3 = 9;
+    }
+     redrawScreen = 1;
   }
 }
-  
+
 void update_shape();
 
 void main()
@@ -205,31 +258,30 @@ void main()
     P1OUT |= LED;	/* led on */
   }
 }
-/*
-void
-screen_update_hourglass()
+
+void drawDiamond(int cCol, int cRow, int size, u_int color)
 {
-  static unsigned char row = screenHeight / 2, col = screenWidth / 2;
-  static char lastStep = 0;
-  
-  if (step == 0 || (lastStep > step)) {
-    clearScreen(COLOR_BLACK);
-    lastStep = 0;
-  } else {
-    for (; lastStep <= step; lastStep++) {
-      int startCol = col - lastStep;
-      int endCol = col + lastStep;
-      int width = 1 + endCol - startCol;
-      
-      // a color in this BGR encoding is BBBB BGGG GGGR RRRR
-      unsigned int color = (blue << 11) | (green << 5) | red;
-      
-      fillRectangle(startCol, row+lastStep, width, 1, color);
-      fillRectangle(startCol, row-lastStep, width, 1, color);
+    int c = 0;
+    int r = 0;
+    for(int j = 0; j < size; j++){
+      drawPixel(cCol+c, cRow+r, color);
+      drawPixel(cCol+c, cRow-r, color);
+      int upper = (cRow-r), lower = (cRow+r);
+      for(;upper <= lower; upper++)
+	drawPixel(cCol+c, upper, color);
+      c += 1;
+      r += 1;
     }
-  }
-}  
-*/
+    for(int k = 0; k <= size; k++){
+      drawPixel(cCol+c, cRow+r, color);
+      drawPixel(cCol+c, cRow-r, color);
+      int upper = (cRow-r), lower = (cRow+r);
+      for(;upper <= lower; upper++)
+	drawPixel(cCol+c, upper, color);
+      c += 1;
+      r -= 1;
+    }
+}
 
 void
 update_shape()
