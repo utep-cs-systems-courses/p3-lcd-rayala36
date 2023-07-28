@@ -1,40 +1,32 @@
 	.arch msp430g2553
 	.p2align 1,0
-	
-	.data
 
-secondCount:	.word 0
-	
 	.text
-
-
-	global siren
-	extern P1OUT
-	extern buzzer_set_period
+	.global siren
+	.extern P1OUT
+	.extern buzzer_set_period
 
 siren:
-	add #1, &secondCount
-	cmp #25, &secondCount
-	jnc p1
-
-	cmp #50, &secondCount
-	jz siren
-
+	sub #1, r1
+	mov #0, 0(r1)
+top:
+	cmp #25, 0(r1)
+           jc p2
 	bis #64, &P1OUT
-	and #~0, &P1OUT
+	and #~1, &P1OUT
+	mov #1500, r12
+	call #buzzer_set_period
+	add #1, 0(r1)
+	jmp top
+
+p2:
+	cmp #50, 0(r1)
+	   jc siren
+	bis #1, &P1OUT
+	and #~64, &P1OUT
+	mov #1000, r12
+	call #buzzer_set_period
+	add #1, 0(r1)
+	jmp p2
+
 	pop r0
-	mov eax, #1500
-	push eax
-	call buzzer_set_period
-	add esp, #4
-	jmp siren
-	
-p1:
-	bis #64, &P1OUT
-	and #~0, &P1OUT
-	pop r0
-	mov eax, #1000
-	push eax
-	call buzzer_set_period
-	add esp, #4
-	jmp siren

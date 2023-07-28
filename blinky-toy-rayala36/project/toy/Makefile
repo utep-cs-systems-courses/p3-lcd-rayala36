@@ -7,14 +7,20 @@ CFLAGS          = -mmcu=${CPU} -I../h -L/opt/ti/msp430_gcc/include
 CC              = msp430-elf-gcc
 AS              = msp430-elf-as
 
-all: toy.elf 
+all: toy-c.elf toy-s.elf 
 
 #additional rules for files
-toy.elf: ${COMMON_OBJECTS} toy_stateMachine.o siren.o song.o song2.o buzzer.o toyMain.o greenStateMach.o redStateMach.o ../lib/libTimer.a
+toy-c.elf: ${COMMON_OBJECTS} toy_stateMachine.o siren.o song.o song2.o buzzer.o toyMain.o greenStateMach.o redStateMach.o ../lib/libTimer.a
 	${CC} ${CFLAGS} -o $@ $^
 
-load: toy.elf
+toy-s.elf: ${COMMON_OBJECTS} toy_stateMachine.o siren-s.o song.o song2.o buzzer.o toyMain.o greenStateMach.o redStateMach.o ../lib/libTimer.a
+	${CC} ${CFLAGS} -o $@ $^
+
+load-c: toy-c.elf
 	msp430loader.sh  $^
+
+load-s: toy-s.elf
+	msp430loader.sh $^
 
 clean: $^
 	rm -f *.o *.elf
