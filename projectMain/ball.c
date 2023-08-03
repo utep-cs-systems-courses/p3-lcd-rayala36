@@ -5,10 +5,7 @@
 #include "pongjuggle.h"
 
 void
-update_shape(int on)
+draw_ball(int col, int row, unsigned short color)
 {
-  screen_update_ball();
-  screen_update_defense();
-  screen_update_offense();
-  return on;
+  fillRectangle(col-1, row-1, 6, 6, color);
 }

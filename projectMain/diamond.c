@@ -8,7 +8,9 @@ void drawDiamond(int cCol, int cRow, int size, u_int color)
 {
     int c = 0;
     int r = 0;
-    for(int j = 0; j < size; j++){
+    //Left half of the diamond is being drawn
+    for(int j = 0; j < size; j++)
+    {
       drawPixel(cCol+c, cRow+r, color);
       drawPixel(cCol+c, cRow-r, color);
       int upper = (cRow-r), lower = (cRow+r);
@@ -17,7 +19,10 @@ void drawDiamond(int cCol, int cRow, int size, u_int color)
       c += 1;
       r += 1;
     }
-    for(int k = 0; k <= size; k++){
+
+    //Right half of the diamond is being drawn
+    for(int k = 0; k <= size; k++)
+    {
       drawPixel(cCol+c, cRow+r, color);
       drawPixel(cCol+c, cRow-r, color);
       int upper = (cRow-r), lower = (cRow+r);

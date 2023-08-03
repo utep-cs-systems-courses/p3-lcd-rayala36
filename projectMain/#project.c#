@@ -65,8 +65,7 @@ void wdt_c_handler()
 
   
   secCount ++;
-  if (secCount >= 25)
-  {		/* 10/sec */
+  if (secCount >= 25) {		/* 10/sec */
     {
       /* move ball */
       short oldCol = controlPos[0];
@@ -108,21 +107,10 @@ void wdt_c_handler()
 	   controlPos[1]  = newRow;
     }
     {
-      switch (score)
-      {
-	case 1:
-	  buzzer_set_period(900);
-	  break;
-	case 2:
-	  buzzer_set_period(700);
-	  break;
-	case 3:
-	  buzzer_set_period(650);
-	  break;
-	case 4:
-	  buzzer_set_period(600);
-	  break;
-	case 5:
+      scoreJT(score);
+      
+      if (score == 5)
+	{
 	  buzzer_set_period(400);
 	  colVelocity = 0;
 	  rowVelocity = 0;
@@ -133,9 +121,7 @@ void wdt_c_handler()
 	  drawString5x7(42, screenHeight/2, "YOU WIN!", COLOR_BLACK, COLOR_ROYAL_BLUE);
 	  score = 0;
 	  break;
-	default:
-	  break;
-      }
+	}
       
       /* move defense board*/
       short oldCol2 = controlPos2[0];

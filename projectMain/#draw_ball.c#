@@ -13,12 +13,6 @@ short rowLimits[2];
 short colLimits[2];
 
 void
-draw_ball(int col, int row, unsigned short color)
-{
-  fillRectangle(col-1, row-1, 6, 6, color);
-}
-
-void
 screen_update_ball()
 {
   for (char axis = 0; axis < 2; axis ++) 

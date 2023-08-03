@@ -1,0 +1,10 @@
+#include <msp430.h>
+#include <libTimer.h>
+#include <stdlib.h>
+#include <string.h>
+#include "libTimer.h"
+#include "lcdutils.h"
+#include "lcddraw.h"
+#include "pongjuggle.h"
+
+void scoreJT(int score)

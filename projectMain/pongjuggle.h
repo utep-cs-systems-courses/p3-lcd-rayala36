@@ -25,4 +25,5 @@ void screen_update_offense();
 
 void update_shape();
 
+void scoreJT(int score);
 #endif
