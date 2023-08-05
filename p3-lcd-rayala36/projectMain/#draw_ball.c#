@@ -1,0 +1,27 @@
+#include <msp430.h>
+#include <libTimer.h>
+#include "lcdutils.h"
+#include "lcddraw.h"
+#include "pongjuggle.h"
+
+// Starting position, speed, and available positions for ball
+short drawPos[2];
+short controlPos[2];
+short colVelocity;
+short rowVelocity;
+short rowLimits[2];
+short colLimits[2];
+
+void
+screen_update_ball()
+{
+  for (char axis = 0; axis < 2; axis ++) 
+    if (drawPos[axis] != controlPos[axis]) /* position changed? */
+      goto redraw;
+  return;			/* nothing to do */
+ redraw:
+  draw_ball(drawPos[0], drawPos[1], COLOR_BLACK); /* erase */
+  for (char axis = 0; axis < 2; axis ++)
+    drawPos[axis] = controlPos[axis];
+  draw_ball(drawPos[0], drawPos[1], COLOR_WHITE); /* draw */
+}

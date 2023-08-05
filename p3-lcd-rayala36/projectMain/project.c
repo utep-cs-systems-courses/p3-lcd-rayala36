@@ -1,0 +1,227 @@
+#include <msp430.h>
+#include <libTimer.h>
+#include <stdlib.h>
+#include <string.h>
+#include "libTimer.h"
+#include "lcdutils.h"
+#include "lcddraw.h"
+#include "pongjuggle.h"
+
+char blue = 31, green = 0, red = 31;
+unsigned char step = 0;
+
+static char 
+switch_update_interrupt_sense()
+{
+  char p2val = P2IN;
+  /* update switch interrupt to detect changes from current buttons */
+  P2IES |= (p2val & SWITCHES);	/* if switch up, sense down */
+  P2IES &= (p2val | ~SWITCHES);	/* if switch down, sense up */
+  return p2val;
+}
+
+void 
+switch_init()			/* setup switch */
+{
+  buzzer_init();
+  configureClocks();
+  P2REN |= SWITCHES;		/* enables resistors for switches */
+  P2IE |= SWITCHES;		/* enable interrupts from switches */
+  P2OUT |= SWITCHES;		/* pull-ups for switches */
+  P2DIR &= ~SWITCHES;		/* set switches' bits for input */
+  switch_update_interrupt_sense();
+}
+
+int switches = 0;
+
+void
+switch_interrupt_handler()
+{
+  char p2val = switch_update_interrupt_sense();
+  switches = ~p2val & SWITCHES;
+}
+
+// Starting position, speed, and available positions for ball
+short drawPos[2] = {1, screenHeight/2}, controlPos[2] = {2, screenHeight/2};
+short colVelocity = 5, rowVelocity = 5;
+short rowLimits[2] = {0, screenHeight}, colLimits[2] = {1, screenWidth - 3};
+
+// Starting position, speed, and available positions for defense board
+short drawPos2[2] = {1, 15}, controlPos2[2] = {2, 15};
+short colVelocity2 = 9, colLimits2[2] = {1, screenWidth - 20};
+
+// Starting position, speed, and available positions for offense board
+short drawPos3[2] = {1, screenHeight-20}, controlPos3[2] = {2, screenHeight-20};
+short colVelocity3 = 9, colLimits3[2] = {1, screenWidth - 20};
+
+short redrawScreen = 1;
+u_int controlFontColor = COLOR_GREEN;
+
+void wdt_c_handler()
+{
+  static int secCount = 0;
+  static int score = 0;
+  static char pScore[7]; //For converting the score to a character constant to be printed
+
+  
+  secCount ++;
+  if (secCount >= 25)
+  {		/* 10/sec */
+    {
+      /* move ball */
+      short oldCol = controlPos[0];
+      short newCol = oldCol + colVelocity;
+      short oldRow = controlPos[1];
+      short newRow = oldRow + rowVelocity;
+
+      //Detects if ball hits right/left screen boundaries
+      if ( newCol <= colLimits[0] || newCol >= colLimits[1] )
+           colVelocity = -colVelocity;
+      else
+           controlPos[0] = newCol;
+
+      // Detects if ball hits top/bottom screen boundaries
+      if ( newRow <= rowLimits[0] || newRow >= rowLimits[1] )
+      {
+	   rowVelocity = -rowVelocity;
+	   score = 0;
+	   drawString5x7(42, screenHeight/2, "Score: ", COLOR_YELLOW, COLOR_BLACK);
+	   drawString5x7(78, screenHeight/2, itoa(score, pScore, 7), COLOR_YELLOW, COLOR_BLACK);
+
+      // Detects if ball collided with top (defense) board
+      } else if ( newRow >= controlPos2[1] && newRow <= controlPos2[1]+1 && newCol >= controlPos2[0] && newCol <= controlPos2[0]+28)
+      { 
+	   rowVelocity = -rowVelocity;
+	   score += 1;
+	   drawString5x7(42, screenHeight/2, "Score: ", COLOR_YELLOW, COLOR_BLACK);
+	   drawString5x7(78, screenHeight/2, itoa(score, pScore, 7), COLOR_YELLOW, COLOR_BLACK);
+
+      // Detects if ball collided with bottom (offense) board
+      } else if (newRow >= controlPos3[1]-1 && newRow <= controlPos3[1]+2 && newCol >= controlPos3[0] && newCol <= controlPos3[0]+28)
+      {
+           rowVelocity = -rowVelocity;
+	   score += 1;
+	   drawString5x7(42, screenHeight/2, "Score: ", COLOR_YELLOW, COLOR_BLACK);
+	   drawString5x7(78, screenHeight/2, itoa(score, pScore, 7), COLOR_YELLOW, COLOR_BLACK);
+	   
+      } else
+	   controlPos[1]  = newRow;
+    }
+    {
+      scoreJT(score);
+      if (score == 5) {
+	  buzzer_set_period(400);
+	  colVelocity = 0;
+	  rowVelocity = 0;
+	  colVelocity2 = 0;
+	  colVelocity3 = 0;
+	  clearScreen(COLOR_GREEN);
+	  drawDiamond(1, (screenHeight/2)+4, 63, COLOR_ROYAL_BLUE);
+	  drawString5x7(42, screenHeight/2, "YOU WIN!", COLOR_BLACK, COLOR_ROYAL_BLUE);
+	  score = 0;
+      }
+      
+      /* move defense board*/
+      short oldCol2 = controlPos2[0];
+      short newCol2 = oldCol2 + colVelocity2;
+
+      /* update player (offense) board */
+      short oldCol3 = controlPos3[0];
+      short newCol3 = oldCol3 + colVelocity3;
+
+      // Moves offense board (bottom)
+      switch(switches & (SW3|SW2|SW1) )
+      {
+	case SW3 :
+	  if(newCol3 <= colLimits3[0] || newCol3 >= colLimits3[1])
+            colVelocity3 = -colVelocity3;
+	  else
+	    controlPos3[0] = newCol3;
+	  break;
+
+      // Moves defense board (top)
+        case SW2 :
+	 if(newCol2 <= colLimits2[0] || newCol2 >= colLimits2[1])
+	    colVelocity2 = -colVelocity2;
+	 else
+	    controlPos2[0] = newCol2;
+	 break;
+
+        case SW1 :
+	  rowVelocity = 0;
+	  colVelocity = 0;
+	  colVelocity2 = 0;
+	  colVelocity3 = 0;
+	  buzzer_set_period(0);
+	  clearScreen(COLOR_BLUE);
+	  clearScreen(COLOR_BLUE);
+	  drawDiamond(1, (screenHeight/2)+4, 63, COLOR_YELLOW);
+	  drawString5x7(16, screenHeight/2, "Ralph's Pong Game", COLOR_BLACK, COLOR_YELLOW);
+	  drawString5x7(14, screenHeight-10, "Press S4 to Play", COLOR_YELLOW, COLOR_BLUE);
+	  break;
+
+	default:
+	  break;
+	}
+	if (step <= 30)
+	  step ++;
+	else
+	  step = 0;
+	secCount = 0;
+      }
+    if (switches & SW4){
+      buzzer_set_period(0);
+      clearScreen(COLOR_BLACK);
+      score = 0;
+      rowVelocity = 5;
+      colVelocity = 5;
+      colVelocity2 = 9;
+      colVelocity3 = 9;
+    }
+     redrawScreen = 1;
+  }
+}
+
+void update_shape(int on);
+
+void main()
+{
+  
+  P1DIR |= LED;		/**< Green led on when CPU on */
+  P1OUT |= LED;
+  configureClocks();
+  lcd_init();
+  switch_init();
+  
+  enableWDTInterrupts();      /**< enable periodic interrupt */
+  or_sr(0x8);	              /**< GIE (enable interrupts) */
+
+  colVelocity = 0;
+  rowVelocity = 0;
+  colVelocity2 = 0;
+  colVelocity3 = 0;
+  clearScreen(COLOR_BLUE);
+  drawDiamond(1, (screenHeight/2)+4, 63, COLOR_YELLOW);
+  drawString5x7(16, screenHeight/2, "Ralph's Pong Game", COLOR_BLACK, COLOR_YELLOW);
+  drawString5x7(14, screenHeight-10, "Press S4 to Play", COLOR_YELLOW, COLOR_BLUE);
+  while (1) {			/* forever */
+    if (redrawScreen) {
+      redrawScreen = 0;
+      update_shape(1);
+    }
+    P1OUT &= ~LED;	/* led off */
+    or_sr(0x10);	/**< CPU OFF */
+    P1OUT |= LED;	/* led on */
+  }
+}
+
+void
+__interrupt_vec(PORT2_VECTOR) Port_2()
+{
+  if (P2IFG & SWITCHES)
+  {	      /* did a button cause this interrupt? */
+    P2IFG &= ~SWITCHES;		      /* clear pending sw interrupts */
+    switch_interrupt_handler();	/* single handler for all switches */
+  }
+}
+
